@@ -29,9 +29,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-        onNavigateToSignUp: () -> Unit
-    ) {
+    onLoginSuccess: (Int) -> Unit,
+    onNavigateToSignUp: () -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -51,7 +51,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text("Email (hoặc ID để test)") },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
         )
@@ -71,10 +71,10 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                // Tạm thời cho phép đăng nhập luôn để bạn test giao diện
-                // Sau này bạn sẽ gọi AuthViewModel.login(email, password) ở đây
                 if (email.isNotEmpty() && password.isNotEmpty()) {
-                    onLoginSuccess()
+                    // Giả lập: Lấy ID từ email nếu nhập số, còn không mặc định là 1
+                    val userId = email.toIntOrNull() ?: 1
+                    onLoginSuccess(userId)
                 }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -92,7 +92,7 @@ fun LoginScreen(
 @Composable
 fun PreviewLogin() {
     LoginScreen(
-        onLoginSuccess = {}, // Tham số thứ nhất phải nằm trong ngoặc
-        onNavigateToSignUp = {} // Tham số thứ hai cũng vậy
+        onLoginSuccess = {},
+        onNavigateToSignUp = {}
     )
 }
