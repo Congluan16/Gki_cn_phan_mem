@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,9 +28,6 @@ import com.example.gki.Screen
 import com.example.gki.viewmodel.CustomerViewModel
 import com.example.gki.R
 
-val VKU_Pink = Color(0xFFFD297B)
-val AppBackground = Color(0xFFF5F5F5)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HosoScreen(
@@ -38,6 +36,15 @@ fun HosoScreen(
     onNavigate: (Screen) -> Unit
 ) {
     val user by viewModel.currentUser.collectAsState()
+    // 1. Lấy danh sách ảnh từ StateFlow trong ViewModel
+    val postImages by viewModel.userImages.collectAsState()
+
+    // 2. Tự động tải danh sách ảnh khi vào màn hình hoặc khi user thay đổi
+    LaunchedEffect(user?.id_user) {
+        user?.id_user?.let { id ->
+            viewModel.fetchUserImages(id)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -45,7 +52,7 @@ fun HosoScreen(
                 title = { Text("Hồ sơ cá nhân", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = { /* Cài đặt */ }) {
-                        Icon(Icons.Default.Settings, "Cài đặt", tint = VKU_Pink)
+                        Icon(Icons.Default.Settings, "Cài đặt", tint = Color(0xFFFD297B))
                     }
                 }
             )
@@ -58,13 +65,12 @@ fun HosoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(AppBackground)
+                .background(Color(0xFFF5F5F5))
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(20.dp))
 
             user?.let { data ->
-                // CHỈNH SỬA TẠI ĐÂY: Dùng profile_img_id thay vì img_url
                 HosoHeader(
                     name = data.full_name ?: "Chưa có tên",
                     imageUrl = data.profile_img_id,
@@ -78,78 +84,39 @@ fun HosoScreen(
                     onClick = { onNavigate(Screen.EditHobbies) }
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Ảnh đã đăng",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 3. Truyền danh sách ảnh thực tế (postImages) vào Grid
+                HosoImageGrid(
+                    imageUrls = postImages,
+                    onAddClick = { onNavigate(Screen.Up_Img) }
+                )
             } ?: run {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = VKU_Pink)
+                    CircularProgressIndicator(color = Color(0xFFFD297B))
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Ảnh đã đăng",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Color.Black
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            HosoImageGrid(
-                imageIds = listOf(),
-                onAddClick = { onNavigate(Screen.Up_Img) }
-            )
         }
     }
 }
 
 @Composable
-fun HosoHeader(
-    name: String,
-    imageUrl: String?,
-    onImageClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable { onImageClick() }
-            .background(Color.White)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            // CHỈNH SỬA LOGIC: Nếu là "1" hoặc null thì hiện ảnh mặc định
-            model = if (imageUrl.isNullOrEmpty() || imageUrl == "1") {
-                R.drawable.dai_dien
-            } else {
-                imageUrl // Đây là URL ảnh từ server Ubuntu
-            },
-            contentDescription = "Avatar",
-            placeholder = painterResource(R.drawable.dai_dien),
-            error = painterResource(R.drawable.dai_dien),
-            modifier = Modifier
-                .size(70.dp)
-                .clip(CircleShape)
-                .border(2.dp, VKU_Pink, CircleShape),
-            contentScale = ContentScale.Crop
-        )
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column {
-            Text(text = name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            Text(text = "Chỉnh sửa hồ sơ", fontSize = 14.sp, color = Color.Gray)
-        }
-    }
-}
-@Composable
-fun HosoImageGrid(imageIds: List<Int>, onAddClick: () -> Unit) {
+fun HosoImageGrid(imageUrls: List<String>, onAddClick: () -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        // Ô đầu tiên luôn là nút "Thêm ảnh"
         item {
             Card(
                 onClick = onAddClick,
@@ -161,9 +128,51 @@ fun HosoImageGrid(imageIds: List<Int>, onAddClick: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Add, "Đăng ảnh mới", tint = VKU_Pink, modifier = Modifier.size(40.dp))
+                    Icon(Icons.Default.Add, "Đăng ảnh mới", tint = Color(0xFFFD297B), modifier = Modifier.size(40.dp))
                 }
             }
+        }
+
+        // Vẽ các ảnh đã lấy được từ Server
+        items(imageUrls) { url ->
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(3f / 4f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.dai_dien), // Ảnh hiện khi đang load
+                error = painterResource(R.drawable.dai_dien)       // Ảnh hiện khi lỗi URL
+            )
+        }
+    }
+}
+
+// Giữ nguyên HosoHeader và HosoHobbiesSection của bạn...
+@Composable
+fun HosoHeader(name: String, imageUrl: String?, onImageClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable { onImageClick() }
+            .background(Color.White)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = if (imageUrl.isNullOrEmpty() || imageUrl == "1") R.drawable.dai_dien else imageUrl,
+            contentDescription = "Avatar",
+            modifier = Modifier.size(70.dp).clip(CircleShape).border(2.dp, Color(0xFFFD297B), CircleShape),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(text = name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text(text = "Chỉnh sửa hồ sơ", fontSize = 14.sp, color = Color.Gray)
         }
     }
 }
@@ -174,20 +183,16 @@ fun HosoHobbiesSection(hobbies: String, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(0.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Favorite, null, tint = VKU_Pink, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Favorite, null, tint = Color(0xFFFD297B), modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Sở thích", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (hobbies.isNullOrEmpty()) "Chưa cập nhật sở thích..." else hobbies,
-                fontSize = 15.sp, color = Color.DarkGray, lineHeight = 20.sp
-            )
+            Text(text = if (hobbies.isEmpty()) "Chưa cập nhật sở thích..." else hobbies, fontSize = 15.sp, color = Color.DarkGray)
         }
     }
 }

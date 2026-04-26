@@ -15,6 +15,8 @@ import com.example.gki.data.model.UserResponse
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import java.io.InputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class CustomerViewModel : ViewModel() {
     private val repository = UserRepository(RetrofitClient.instance)
@@ -93,14 +95,69 @@ class CustomerViewModel : ViewModel() {
     }
 
     // Hỗ trợ chuyển đổi Uri sang Base64
-    private fun uriToBase64(context: Context, uri: Uri): String? {
-        return try {
+    private suspend fun uriToBase64(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+        return@withContext try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
             val bytes = inputStream?.readBytes()
             inputStream?.close()
             if (bytes != null) Base64.encodeToString(bytes, Base64.NO_WRAP) else null
         } catch (e: Exception) {
+            Log.e("DEBUG_API", "Lỗi chuyển đổi ảnh: ${e.message}")
             null
+        }
+    }
+    fun uploadPostImage(context: Context, userId: Int, imageUri: Uri, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                // 1. Kiểm tra việc chuyển đổi ảnh
+                val base64Image = uriToBase64(context, imageUri)
+                if (base64Image == null) {
+                    Log.e("DEBUG_API", "LỖI: Không thể đọc được file ảnh từ Uri.")
+                    return@launch
+                }
+
+                val fullBase64 = "data:image/jpeg;base64,$base64Image"
+                Log.d("DEBUG_API", "Đang gửi yêu cầu upload cho User ID: $userId")
+
+                // 2. Gọi API
+                val response = RetrofitClient.instance.uploadPostImage(userId, fullBase64)
+
+                // Nếu không có lỗi, Retrofit sẽ chạy tiếp xuống đây
+                Log.d("DEBUG_API", "Server trả về: $response")
+                onSuccess()
+
+            } catch (e: retrofit2.HttpException) {
+                // TRẠM KIỂM TRA 1: Lỗi từ phía Server (500, 404, 403...)
+                val code = e.code()
+                val errorBody = e.response()?.errorBody()?.string()
+
+                // Chỗ này sẽ in ra nội dung như "Unknown column 'is_avatar'..." mà bạn thấy trong log Apache
+                Log.e("DEBUG_API", "LỖI SERVER ($code): $errorBody")
+
+            } catch (e: java.io.IOException) {
+                // TRẠM KIỂM TRA 2: Lỗi kết nối (Mất mạng, Server sập, Timeout)
+                Log.e("DEBUG_API", "LỖI KẾT NỐI: Kiểm tra lại Wi-Fi hoặc địa chỉ IP Server.")
+
+            } catch (e: Exception) {
+                // TRẠM KIỂM TRA 3: Các lỗi logic code khác
+                Log.e("DEBUG_API", "LỖI NGOẠI LỆ: ${e.message}")
+            }
+        }
+    }
+
+    // Thêm biến lưu danh sách ảnh
+    private val _userImages = MutableStateFlow<List<String>>(emptyList())
+    val userImages: StateFlow<List<String>> = _userImages
+
+    // Hàm tải ảnh từ server
+    fun fetchUserImages(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val images = RetrofitClient.instance.getPostImages(userId)
+                _userImages.value = images
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi tải ảnh post: ${e.message}")
+            }
         }
     }
 }

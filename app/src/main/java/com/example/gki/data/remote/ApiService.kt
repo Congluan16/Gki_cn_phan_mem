@@ -31,4 +31,12 @@ interface ApiService {
         @Field("id_user") userId: Int,
         @Field("image") imageBase64: String
     ): UserResponse
+    @FormUrlEncoded
+    @POST("upload_post_image.php")
+    suspend fun uploadPostImage(
+        @Field("id_user") userId: Int,
+        @Field("image") imageBase64: String
+    ): Map<String, String> // Trả về thông báo thành công/thất bại
+    @GET("get_post_images.php")
+    suspend fun getPostImages(@Query("id_user") userId: Int): List<String>
 }
