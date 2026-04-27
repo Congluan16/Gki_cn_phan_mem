@@ -202,9 +202,13 @@ fun MatchUserItem(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = user.full_name ?: "Unknown", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(
-                    text = when(actionType) {
+                    text = user.full_name ?: "Unknown",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = when (actionType) {
                         "chat" -> "Đang hoạt động"
                         "request" -> "Muốn kết bạn với bạn"
                         "pending" -> "Đang chờ xác nhận..."
@@ -224,7 +228,12 @@ fun MatchUserItem(
                             .background(Color.LightGray.copy(0.2f), CircleShape)
                             .size(36.dp)
                     ) {
-                        Icon(Icons.Default.Clear, contentDescription = "Hủy/Từ chối", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Hủy/Từ chối",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -233,13 +242,15 @@ fun MatchUserItem(
                     onClick = onActionClick,
                     modifier = Modifier
                         .background(
-                            if (actionType == "chat") Color.LightGray.copy(0.2f) else Color(0xFFFD297B).copy(0.1f),
+                            if (actionType == "chat") Color.LightGray.copy(0.2f) else Color(
+                                0xFFFD297B
+                            ).copy(0.1f),
                             CircleShape
                         )
                         .size(36.dp)
                 ) {
                     Icon(
-                        imageVector = when(actionType) {
+                        imageVector = when (actionType) {
                             "chat" -> Icons.Default.Send
                             "request" -> Icons.Default.Check
                             "pending" -> Icons.Default.Search
