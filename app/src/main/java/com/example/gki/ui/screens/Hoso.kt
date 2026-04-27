@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,6 +29,8 @@ import coil.compose.AsyncImage
 import com.example.gki.Screen
 import com.example.gki.viewmodel.CustomerViewModel
 import com.example.gki.R
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,10 +40,8 @@ fun HosoScreen(
     onNavigate: (Screen) -> Unit
 ) {
     val user by viewModel.currentUser.collectAsState()
-    // 1. Lấy danh sách ảnh từ StateFlow trong ViewModel
     val postImages by viewModel.userImages.collectAsState()
 
-    // 2. Tự động tải danh sách ảnh khi vào màn hình hoặc khi user thay đổi
     LaunchedEffect(user?.id_user) {
         user?.id_user?.let { id ->
             viewModel.fetchUserImages(id)
@@ -67,18 +69,30 @@ fun HosoScreen(
                 .padding(padding)
                 .background(Color(0xFFF5F5F5))
                 .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(20.dp))
 
             user?.let { data ->
+                // 1. Header (Tên và Ảnh)
                 HosoHeader(
                     name = data.full_name ?: "Chưa có tên",
                     imageUrl = data.profile_img_id,
                     onImageClick = { onNavigate(Screen.EditAvata) }
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
+                // 2. Ô THÔNG TIN CƠ BẢN (Tuổi, Cao, Nặng, Ngày sinh)
+                HosoInfoSection(
+                    birthDate = data.birth_date,
+                    height = data.height,
+                    weight = data.weight
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3. Sở thích
                 HosoHobbiesSection(
                     hobbies = data.hobbies ?: "",
                     onClick = { onNavigate(Screen.EditHobbies) }
@@ -94,7 +108,6 @@ fun HosoScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 3. Truyền danh sách ảnh thực tế (postImages) vào Grid
                 HosoImageGrid(
                     imageUrls = postImages,
                     onAddClick = { onNavigate(Screen.Up_Img) }
@@ -109,49 +122,43 @@ fun HosoScreen(
 }
 
 @Composable
-fun HosoImageGrid(imageUrls: List<String>, onAddClick: () -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxSize()
+fun HosoInfoSection(birthDate: String?, height: String?, weight: String?) {
+    val age = calculateAgeLocal(birthDate)
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        // Ô đầu tiên luôn là nút "Thêm ảnh"
-        item {
-            Card(
-                onClick = onAddClick,
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(2.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, "Đăng ảnh mới", tint = Color(0xFFFD297B), modifier = Modifier.size(40.dp))
-                }
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, null, tint = Color(0xFFFD297B), modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Thông tin cơ bản", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
-        }
+            Spacer(modifier = Modifier.height(12.dp))
 
-        // Vẽ các ảnh đã lấy được từ Server
-        items(imageUrls) { url ->
-            AsyncImage(
-                model = url,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(3f / 4f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.LightGray),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.dai_dien), // Ảnh hiện khi đang load
-                error = painterResource(R.drawable.dai_dien)       // Ảnh hiện khi lỗi URL
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                InfoColumn(label = "Tuổi", value = if (age > 0) "$age" else "--")
+                InfoColumn(label = "Ngày sinh", value = birthDate ?: "--")
+                InfoColumn(label = "Cao", value = if (height != null) "${height}cm" else "--")
+                InfoColumn(label = "Nặng", value = if (weight != null) "${weight}kg" else "--")
+            }
         }
     }
 }
 
-// Giữ nguyên HosoHeader và HosoHobbiesSection của bạn...
+@Composable
+fun InfoColumn(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = label, fontSize = 12.sp, color = Color.Gray)
+        Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+    }
+}
+
+// Các Component con giữ nguyên logic nhưng đảm bảo sạch lỗi
 @Composable
 fun HosoHeader(name: String, imageUrl: String?, onImageClick: () -> Unit) {
     Row(
@@ -195,4 +202,61 @@ fun HosoHobbiesSection(hobbies: String, onClick: () -> Unit) {
             Text(text = if (hobbies.isEmpty()) "Chưa cập nhật sở thích..." else hobbies, fontSize = 15.sp, color = Color.DarkGray)
         }
     }
+}
+
+@Composable
+fun HosoImageGrid(imageUrls: List<String>, onAddClick: () -> Unit) {
+    Box(modifier = Modifier.height(400.dp)) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            item {
+                Card(
+                    onClick = onAddClick,
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth().aspectRatio(3f/4f), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, null, tint = Color(0xFFFD297B), modifier = Modifier.size(40.dp))
+                    }
+                }
+            }
+            items(imageUrls) { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(3f/4f).clip(RoundedCornerShape(12.dp)).background(Color.LightGray),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.dai_dien),
+                    error = painterResource(R.drawable.dai_dien)
+                )
+            }
+        }
+    }
+}
+
+// Đổi tên thành calculateAgeLocal và thêm private để tránh xung đột với file khác
+private fun calculateAgeLocal(birthDateString: String?): Int {
+    if (birthDateString.isNullOrEmpty()) return 0
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val birthDate = sdf.parse(birthDateString) ?: return 0
+        val birthCalendar = Calendar.getInstance().apply { time = birthDate }
+        val today = Calendar.getInstance()
+
+        var age = today.get(Calendar.YEAR) - birthCalendar.get(Calendar.YEAR)
+
+        // So sánh ngày trong năm để tính tuổi chính xác
+        val dayInYearToday = today.get(Calendar.DAY_OF_YEAR)
+        val dayInYearBirth = birthCalendar.get(Calendar.DAY_OF_YEAR)
+
+        if (dayInYearToday < dayInYearBirth) {
+            age--
+        }
+        age
+    } catch (e: Exception) { 0 }
 }
