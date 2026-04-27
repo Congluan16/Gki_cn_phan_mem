@@ -2,7 +2,7 @@ package com.example.gki.data.model
 
 import com.google.gson.annotations.SerializedName
 
-data class UserResponse(
+data class  UserResponse(
     val id_user: Int,
     val full_name: String?,
     val birth_date: String?,

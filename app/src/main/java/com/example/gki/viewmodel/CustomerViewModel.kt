@@ -6,6 +6,8 @@ import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gki.data.model.MatchResponse
+import com.example.gki.data.model.PostImageResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -30,14 +32,32 @@ class CustomerViewModel : ViewModel() {
     fun fetchAllUsers() {
         viewModelScope.launch {
             try {
-                // Chạy song song cả 4 yêu cầu mạng
-                val deferredUsers = (1..4).map { id ->
-                    async { try { repository.getUserProfile(id) } catch (e: Exception) { null } }
-                }
-                val results = deferredUsers.awaitAll().filterNotNull()
+                // SỬA: Lấy toàn bộ danh sách từ API thay vì chạy vòng lặp id 1..4
+                val results = apiService.getAllUsers()
                 _customers.value = results
             } catch (e: Exception) {
                 Log.e("DEBUG_API", "Lỗi tải danh sách: ${e.message}")
+            }
+        }
+    }
+    // Trong CustomerViewModel.kt
+    // Trong CustomerViewModel.kt
+    fun handleMatchAction(action: String, myId: Int, targetId: Int, context: android.content.Context) {
+        if (myId == 0) return
+
+        viewModelScope.launch {
+            try {
+                val response = apiService.manageMatch(action, myId, targetId)
+
+                // Tải lại danh sách matches mới nhất từ Server
+                fetchMatches(myId)
+
+                // Hiện thông báo để người dùng biết nút đã được nhấn thành công
+                val msg = if (action == "send") "Đã gửi lời mời kết bạn!" else "Đã trở thành bạn bè!"
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi thao tác match: ${e.message}")
             }
         }
     }
@@ -162,17 +182,69 @@ class CustomerViewModel : ViewModel() {
     }
 
     // Thêm biến lưu danh sách ảnh
-    private val _userImages = MutableStateFlow<List<String>>(emptyList())
-    val userImages: StateFlow<List<String>> = _userImages
-
-    // Hàm tải ảnh từ server
+    private val apiService = RetrofitClient.instance
+    private val _userImages = MutableStateFlow<List<PostImageResponse>>(emptyList())
+    val userImages: StateFlow<List<PostImageResponse>> = _userImages
     fun fetchUserImages(userId: Int) {
         viewModelScope.launch {
             try {
-                val images = RetrofitClient.instance.getPostImages(userId)
+                // API giờ trả về List<PostImageResponse>
+                val images = apiService.getPostImages(userId)
                 _userImages.value = images
             } catch (e: Exception) {
                 Log.e("DEBUG_API", "Lỗi tải ảnh post: ${e.message}")
+            }
+        }
+    }
+    fun deleteImage(imageId: Int, userId: Int) {
+        viewModelScope.launch {
+            try {
+                apiService.deletePostImage(imageId)
+                // Xóa xong thì tải lại danh sách ảnh mới
+                fetchUserImages(userId)
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi xóa ảnh: ${e.message}")
+            }
+        }
+    }
+    fun logout() {
+        _currentUser.value = null
+        _userImages.value = emptyList()
+    }
+    fun updateBasicInfo(userId: Int, birthDate: String, height: String, weight: String) {
+        viewModelScope.launch {
+            try {
+                val updatedUser = apiService.updateBasicInfo(userId, birthDate, height, weight)
+                _currentUser.value = updatedUser // Cập nhật lại UI ngay lập tức
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Update Info Error: ${e.message}")
+            }
+        }
+    }
+    // Trong class CustomerViewModel
+    private val _matches = MutableStateFlow<List<MatchResponse>>(emptyList())
+    val matches: StateFlow<List<MatchResponse>> = _matches
+
+    // 1. Tải danh sách các mối quan hệ từ server
+    fun fetchMatches(myId: Int) {
+        viewModelScope.launch {
+            try {
+                _matches.value = apiService.getMatches(myId)
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi tải matches: ${e.message}")
+            }
+        }
+    }
+
+    // 2. Gửi hoặc Chấp nhận lời mời
+    fun handleMatchAction(action: String, myId: Int, targetId: Int) {
+        viewModelScope.launch {
+            try {
+                apiService.manageMatch(action, myId, targetId)
+                // Sau khi thực hiện xong, tải lại danh sách để UI cập nhật ngay
+                fetchMatches(myId)
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi thao tác match: ${e.message}")
             }
         }
     }

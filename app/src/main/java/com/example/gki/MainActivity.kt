@@ -21,6 +21,7 @@ import com.example.gki.ui.screens.HosoScreen
 import com.example.gki.ui.screens.MatchScreen
 import com.example.gki.ui.screens.TP_Hoso.EditAvataScreen
 import com.example.gki.ui.screens.TP_Hoso.EditHobbiesScreen
+import com.example.gki.ui.screens.TP_Hoso.EditInfoScreen
 import com.example.gki.ui.screens.TP_Hoso.UpImgScreen
 
 sealed class Screen {
@@ -32,6 +33,7 @@ sealed class Screen {
     object EditAvata : Screen()
     object EditHobbies : Screen()
     object Up_Img : Screen()
+    object EditInfo : Screen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -44,10 +46,14 @@ class MainActivity : ComponentActivity() {
             when (currentScreen) {
                 is Screen.Login -> {
                     LoginScreen(
-                        viewModel = viewModel, // THÊM DÒNG NÀY ĐỂ HẾT LỖI BUILD
+                        viewModel = viewModel,
                         onLoginSuccess = { userId ->
-                            // Không cần fetchCurrentUser vì ViewModel đã làm lúc login
+                            // 1. Gọi hàm này để lấy hồ sơ đầy đủ (bao gồm sở thích) ngay lập tức
+                            viewModel.fetchCurrentUser(userId)
+
+                            // 2. Tải danh sách người dùng khác cho màn hình Home
                             viewModel.fetchAllUsers()
+
                             currentScreen = Screen.Home
                         },
                         onNavigateToSignUp = { }
@@ -64,7 +70,24 @@ class MainActivity : ComponentActivity() {
                     HosoScreen(
                         viewModel = viewModel,
                         currentScreen = currentScreen,
-                        onNavigate = { newScreen -> currentScreen = newScreen }
+                        onNavigate = { newScreen -> currentScreen = newScreen },
+                        onLogout = {
+                            viewModel.logout()
+                            currentScreen = Screen.Login
+                        }
+                    )
+                }
+                is Screen.EditInfo -> {
+                    val user by viewModel.currentUser.collectAsState()
+                    EditInfoScreen(
+                        currentUser = user,
+                        onBack = { currentScreen = Screen.HoSo },
+                        onSave = { birth, height, weight ->
+                            user?.id_user?.let { id ->
+                                viewModel.updateBasicInfo(id, birth, height, weight)
+                            }
+                            currentScreen = Screen.HoSo
+                        }
                     )
                 }
                 is Screen.EditHobbies -> {
