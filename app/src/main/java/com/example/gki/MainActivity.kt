@@ -44,8 +44,9 @@ class MainActivity : ComponentActivity() {
             when (currentScreen) {
                 is Screen.Login -> {
                     LoginScreen(
+                        viewModel = viewModel, // THÊM DÒNG NÀY ĐỂ HẾT LỖI BUILD
                         onLoginSuccess = { userId ->
-                            viewModel.fetchCurrentUser(userId)
+                            // Không cần fetchCurrentUser vì ViewModel đã làm lúc login
                             viewModel.fetchAllUsers()
                             currentScreen = Screen.Home
                         },

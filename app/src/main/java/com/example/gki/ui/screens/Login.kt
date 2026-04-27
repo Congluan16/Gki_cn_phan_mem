@@ -26,14 +26,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.gki.viewmodel.CustomerViewModel
 
 @Composable
 fun LoginScreen(
+    viewModel: CustomerViewModel,
     onLoginSuccess: (Int) -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -69,12 +72,18 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        if (errorMessage != null) {
+            Text(text = errorMessage!!, color = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         Button(
             onClick = {
                 if (email.isNotEmpty() && password.isNotEmpty()) {
-                    // Giả lập: Lấy ID từ email nếu nhập số, còn không mặc định là 1
-                    val userId = email.toIntOrNull() ?: 1
-                    onLoginSuccess(userId)
+                    viewModel.login(email, password,
+                        onSuccess = { userId -> onLoginSuccess(userId) },
+                        onError = { message -> errorMessage = message }
+                    )
                 }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -86,13 +95,4 @@ fun LoginScreen(
             Text("Don't have an account? Sign Up")
         }
     }
-}
-
-@Preview(showBackground = true, name = "Login Preview")
-@Composable
-fun PreviewLogin() {
-    LoginScreen(
-        onLoginSuccess = {},
-        onNavigateToSignUp = {}
-    )
 }

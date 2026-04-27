@@ -8,7 +8,9 @@ class UserRepository(private val apiService: ApiService) {
     suspend fun getUserProfile(userId: Int): UserResponse {
         return apiService.getUserProfile(userId)
     }
-
+    suspend fun login(email: String, pass: String): UserResponse {
+        return apiService.login(email, pass)
+    }
     suspend fun updateHobbies(userId: Int, hobbies: String): UserResponse {
         return apiService.updateHobbies(userId, hobbies)
     }

@@ -41,7 +41,23 @@ class CustomerViewModel : ViewModel() {
             }
         }
     }
-
+    fun login(email: String, pass: String, onSuccess: (Int) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                // Gọi hàm login từ Repository
+                val user = repository.login(email, pass)
+                if (user != null && user.id_user != 0) {
+                    _currentUser.value = user // Lưu thông tin user hiện tại
+                    onSuccess(user.id_user)
+                } else {
+                    onError("Email hoặc mật khẩu không chính xác")
+                }
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Login Error: ${e.message}")
+                onError("Lỗi kết nối server")
+            }
+        }
+    }
     fun fetchCurrentUser(userId: Int) {
         viewModelScope.launch {
             try {

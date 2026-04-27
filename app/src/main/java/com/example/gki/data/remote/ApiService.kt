@@ -10,7 +10,12 @@ import retrofit2.http.Query
 interface ApiService {
     @GET("get_user_profile.php")
     suspend fun getUserProfile(@Query("id") userId: Int): UserResponse
-
+    @FormUrlEncoded
+    @POST("login.php")
+    suspend fun login(
+        @Field("email") email: String,
+        @Field("password") password: String
+    ): UserResponse
     @FormUrlEncoded
     @POST("update_hobbies.php")
     suspend fun updateHobbies(

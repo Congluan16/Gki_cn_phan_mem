@@ -65,7 +65,7 @@ fun MatchScreen(
     val userList by viewModel.customers.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Khám phá, 1: Bạn bè, 2: Lời mời
-    val tabs = listOf("Khám phá", "Bạn bè", "Lời mời")
+    val tabs = listOf("Khám phá", "Bạn bè", "Lời mời", "Xác nhận")
 
     // Tự động tải danh sách người dùng khi vào màn hình
     LaunchedEffect(Unit) {
