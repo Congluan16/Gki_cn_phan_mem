@@ -42,19 +42,30 @@ class CustomerViewModel : ViewModel() {
     }
     // Trong CustomerViewModel.kt
     // Trong CustomerViewModel.kt
-    fun handleMatchAction(action: String, myId: Int, targetId: Int, context: android.content.Context) {
+    fun handleMatchAction(
+        action: String,
+        myId: Int,
+        targetId: Int,
+        context: Context
+    ) {
         if (myId == 0) return
 
         viewModelScope.launch {
             try {
-                val response = apiService.manageMatch(action, myId, targetId)
+                apiService.manageMatch(action, myId, targetId)
 
-                // Tải lại danh sách matches mới nhất từ Server
                 fetchMatches(myId)
 
-                // Hiện thông báo để người dùng biết nút đã được nhấn thành công
-                val msg = if (action == "send") "Đã gửi lời mời kết bạn!" else "Đã trở thành bạn bè!"
-                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                val msg = when (action) {
+                    "send" -> "Đã gửi lời mời kết bạn!"
+                    "accept" -> "Đã trở thành bạn bè!"
+                    "decline" -> "Đã hủy yêu cầu!"
+                    else -> "Thành công!"
+                }
+
+                android.widget.Toast
+                    .makeText(context, msg, android.widget.Toast.LENGTH_SHORT)
+                    .show()
 
             } catch (e: Exception) {
                 Log.e("DEBUG_API", "Lỗi thao tác match: ${e.message}")
@@ -236,16 +247,4 @@ class CustomerViewModel : ViewModel() {
         }
     }
 
-    // 2. Gửi hoặc Chấp nhận lời mời
-    fun handleMatchAction(action: String, myId: Int, targetId: Int) {
-        viewModelScope.launch {
-            try {
-                apiService.manageMatch(action, myId, targetId)
-                // Sau khi thực hiện xong, tải lại danh sách để UI cập nhật ngay
-                fetchMatches(myId)
-            } catch (e: Exception) {
-                Log.e("DEBUG_API", "Lỗi thao tác match: ${e.message}")
-            }
-        }
-    }
 }

@@ -18,6 +18,7 @@ import com.example.gki.viewmodel.CustomerViewModel
 import com.example.gki.ui.screens.LoginScreen
 import com.example.gki.ui.screens.MainScreenContent
 import com.example.gki.ui.screens.HosoScreen
+import com.example.gki.ui.screens.Hoso_Khach
 import com.example.gki.ui.screens.MatchScreen
 import com.example.gki.ui.screens.TP_Hoso.EditAvataScreen
 import com.example.gki.ui.screens.TP_Hoso.EditHobbiesScreen
@@ -30,6 +31,12 @@ sealed class Screen {
     object Chat : Screen()
     object Match : Screen()
     object HoSo : Screen()
+
+    data class HosoKhach(
+        val userId: Int,
+        val fromScreen: Screen
+    ) : Screen()
+
     object EditAvata : Screen()
     object EditHobbies : Screen()
     object Up_Img : Screen()
@@ -147,6 +154,23 @@ class MainActivity : ComponentActivity() {
                         currentScreen = currentScreen,
                         onNavigate = { newScreen -> currentScreen = newScreen }
                     )
+                }
+                is Screen.HosoKhach -> {
+                    val screen = currentScreen as Screen.HosoKhach
+                    val guest = viewModel.customers.collectAsState().value
+                        .find { it.id_user == screen.userId }
+
+                    guest?.let {
+                        Hoso_Khach(
+                            guest = it,
+                            viewModel = viewModel,
+                            currentScreen = currentScreen,   // thêm dòng này
+                            fromScreen = screen.fromScreen,  // thêm dòng này
+                            onNavigate = { newScreen ->
+                                currentScreen = newScreen
+                            }
+                        )
+                    }
                 }
             }
         }

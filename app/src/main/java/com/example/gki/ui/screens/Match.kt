@@ -2,9 +2,10 @@ package com.example.gki.ui.screens
 
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items // QUAN TRỌNG: Phải có dòng này
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -65,35 +66,52 @@ fun MatchScreen(
     val tabs = listOf("Khám phá", "Bạn bè", "Lời mời", "Chờ xác nhận")
 
     LaunchedEffect(myId) {
-        Log.d("DEBUG_API", "ID hiện tại của tôi là: $myId")
         if (myId != 0) {
             viewModel.fetchAllUsers()
             viewModel.fetchMatches(myId)
         }
     }
 
-    // --- LOGIC LỌC DỮ LIỆU ---
-    val invitesReceived = allUsers.filter { user ->
-        matches.any { match: MatchResponse ->
-            match.status == 0 && match.sender_id != myId && (match.user_one_id == user.id_user || match.user_two_id == user.id_user)
-        }
-    }
+    // --- LOGIC LỌC DANH SÁCH THEO TAB ---
+    val listToDisplay = when (selectedTab) {
 
-    val invitesSent = allUsers.filter { user ->
-        matches.any { match: MatchResponse ->
-            match.status == 0 && match.sender_id == myId && (match.user_one_id == user.id_user || match.user_two_id == user.id_user)
+        // KHÁM PHÁ
+        0 -> allUsers.filter { user ->
+            user.id_user != myId &&
+                    matches.none { m ->
+                        m.user_one_id == user.id_user || m.user_two_id == user.id_user
+                    }
+        }.filter {
+            it.full_name?.contains(searchQuery, true) == true
         }
-    }
 
-    val friends = allUsers.filter { user ->
-        matches.any { match: MatchResponse ->
-            match.status == 1 && (match.user_one_id == user.id_user || match.user_two_id == user.id_user)
+        // BẠN BÈ
+        1 -> allUsers.filter { user ->
+            user.id_user != myId &&
+                    matches.any { m ->
+                        m.status == 1 &&
+                                (m.user_one_id == user.id_user || m.user_two_id == user.id_user)
+                    }
         }
-    }
 
-    val discovery = allUsers.filter { user ->
-        user.id_user != myId && matches.none { match: MatchResponse ->
-            match.user_one_id == user.id_user || match.user_two_id == user.id_user
+        // LỜI MỜI
+        2 -> allUsers.filter { user ->
+            user.id_user != myId &&
+                    matches.any { m ->
+                        m.status == 0 &&
+                                m.sender_id != myId &&
+                                (m.user_one_id == user.id_user || m.user_two_id == user.id_user)
+                    }
+        }
+
+        // CHỜ XÁC NHẬN
+        else -> allUsers.filter { user ->
+            user.id_user != myId &&
+                    matches.any { m ->
+                        m.status == 0 &&
+                                m.sender_id == myId &&
+                                (m.user_one_id == user.id_user || m.user_two_id == user.id_user)
+                    }
         }
     }
 
@@ -128,53 +146,36 @@ fun MatchScreen(
         },
         bottomBar = { AppBottomNavigation(currentScreen, onNavigate) }
     ) { padding ->
-        // --- ĐÂY LÀ PHẦN HIỂN THỊ DANH SÁCH ---
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            when (selectedTab) {
-                0 -> { // KHÁM PHÁ
-                    items(discovery.filter { it.full_name?.contains(searchQuery, true) == true }) { user ->
-                        MatchUserItem(user, "add", onActionClick = {
-                            viewModel.handleMatchAction("send", myId, user.id_user, context)
-                        })
+            items(listToDisplay) { user ->
+                MatchUserItem(
+                    user = user,
+                    actionType = when(selectedTab) {
+                        0 -> "add"
+                        1 -> "chat"
+                        2 -> "request"
+                        else -> "pending"
+                    },
+                    onItemClick = {
+                        // KHI NHẤN VÀO Ô THÌ SANG HỒ SƠ KHÁCH, GỐC LÀ MATCH
+                        onNavigate(Screen.HosoKhach(user.id_user, Screen.Match))
+                    },
+                    onActionClick = {
+                        when(selectedTab) {
+                            0 -> viewModel.handleMatchAction("send", myId, user.id_user, context)
+                            1 -> onNavigate(Screen.Chat)
+                            2 -> viewModel.handleMatchAction("accept", myId, user.id_user, context)
+                        }
+                    },
+                    onSecondaryActionClick = {
+                        // Nút X để hủy hoặc từ chối
+                        viewModel.handleMatchAction("decline", myId, user.id_user, context)
                     }
-                }
-                1 -> { // BẠN BÈ
-                    items(friends) { friend ->
-                        MatchUserItem(friend, "chat", onActionClick = {
-                            onNavigate(Screen.Chat)
-                        })
-                    }
-                }
-                2 -> { // LỜI MỜI (Phải có X và Tích)
-                    items(invitesReceived) { requester ->
-                        MatchUserItem(
-                            user = requester,
-                            actionType = "request",
-                            onActionClick = {
-                                viewModel.handleMatchAction("accept", myId, requester.id_user, context)
-                            },
-                            onSecondaryActionClick = {
-                                viewModel.handleMatchAction("decline", myId, requester.id_user, context)
-                            }
-                        )
-                    }
-                }
-                3 -> { // CHỜ XÁC NHẬN (Cũng có thể Hủy bằng nút X)
-                    items(invitesSent) { user ->
-                        MatchUserItem(
-                            user = user,
-                            actionType = "pending",
-                            onActionClick = { /* Đang chờ, không làm gì */ },
-                            onSecondaryActionClick = {
-                                viewModel.handleMatchAction("decline", myId, user.id_user, context)
-                            }
-                        )
-                    }
-                }
+                )
             }
         }
     }
@@ -184,11 +185,14 @@ fun MatchScreen(
 fun MatchUserItem(
     user: UserResponse,
     actionType: String,
+    onItemClick: () -> Unit,
     onActionClick: () -> Unit,
     onSecondaryActionClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onItemClick() }, // Nhấn vào cả card để xem hồ sơ
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -202,13 +206,9 @@ fun MatchUserItem(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                Text(text = user.full_name ?: "Unknown", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(
-                    text = user.full_name ?: "Unknown",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = when (actionType) {
+                    text = when(actionType) {
                         "chat" -> "Đang hoạt động"
                         "request" -> "Muốn kết bạn với bạn"
                         "pending" -> "Đang chờ xác nhận..."
@@ -219,46 +219,39 @@ fun MatchUserItem(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // NÚT PHỤ (Dấu X - Chỉ hiện cho Lời mời và Chờ xác nhận)
+                // Nút X (Từ chối/Hủy)
                 if ((actionType == "request" || actionType == "pending") && onSecondaryActionClick != null) {
                     IconButton(
                         onClick = onSecondaryActionClick,
                         modifier = Modifier
-                            .padding(end = 8.dp)
                             .background(Color.LightGray.copy(0.2f), CircleShape)
                             .size(36.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Clear,
-                            contentDescription = "Hủy/Từ chối",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Default.Clear, contentDescription = "Hủy", tint = Color.Gray)
                     }
                 }
 
-                // NÚT CHÍNH (+ hoặc Tích hoặc Gửi tin nhắn)
-                IconButton(
-                    onClick = onActionClick,
-                    modifier = Modifier
-                        .background(
-                            if (actionType == "chat") Color.LightGray.copy(0.2f) else Color(
-                                0xFFFD297B
-                            ).copy(0.1f),
-                            CircleShape
+                if (actionType != "pending") {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = onActionClick,
+                        modifier = Modifier
+                            .background(
+                                if (actionType == "chat") Color.LightGray.copy(0.2f) else Color(0xFFFD297B).copy(0.1f),
+                                CircleShape
+                            )
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = when(actionType) {
+                                "chat" -> Icons.Default.Send
+                                "request" -> Icons.Default.Check
+                                else -> Icons.Default.Add
+                            },
+                            contentDescription = null,
+                            tint = if (actionType == "chat") Color.Gray else Color(0xFFFD297B)
                         )
-                        .size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = when (actionType) {
-                            "chat" -> Icons.Default.Send
-                            "request" -> Icons.Default.Check
-                            "pending" -> Icons.Default.Search
-                            else -> Icons.Default.Add
-                        },
-                        contentDescription = null,
-                        tint = if (actionType == "chat") Color.Gray else Color(0xFFFD297B)
-                    )
+                    }
                 }
             }
         }

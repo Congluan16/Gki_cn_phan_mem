@@ -84,13 +84,10 @@ fun MainScreenContent(
                         val user = displayList[pageIndex]
                         Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight()
-                                // --- THÊM CLICKABLE TẠI ĐÂY ---
+                                .fillMaxSize()
                                 .clickable {
-                                    // Chuyển sang màn hình hồ sơ của người dùng này
-                                    // Lưu ý: Bạn cần xử lý logic hiển thị dữ liệu của 'user' này trong HosoScreen
-                                    onNavigate(Screen.HoSo)
+                                    // KHI NHẤN VÀO Ở HOME THÌ KHAI BÁO GỐC LÀ HOME
+                                    onNavigate(Screen.HosoKhach(user.id_user, Screen.Home))
                                 }
                                 .graphicsLayer {
                                     val pageOffset = (pagerState.currentPage - pageIndex) + pagerState.currentPageOffsetFraction
