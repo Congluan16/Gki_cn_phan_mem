@@ -22,4 +22,17 @@ class UserRepository(private val apiService: ApiService) {
     suspend fun updateProfileImage(userId: Int, imageBase64: String): UserResponse {
         return apiService.updateProfileImage(userId, imageBase64)
     }
+    // Thêm vào class UserRepository
+    suspend fun signUp(
+        fullName: String,
+        email: String,
+        pass: String,
+        birth: String,
+        height: String,
+        weight: String,
+        gender: String
+    ): UserResponse {
+        // Truyền tiếp 7 tham số này xuống apiService
+        return apiService.signUp(fullName, email, pass, birth, height, weight, gender)
+    }
 }

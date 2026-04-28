@@ -14,18 +14,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gki.ui.screens.ChatScreen
 import com.example.gki.viewmodel.CustomerViewModel
 import com.example.gki.ui.screens.LoginScreen
 import com.example.gki.ui.screens.MainScreenContent
 import com.example.gki.ui.screens.HosoScreen
 import com.example.gki.ui.screens.Hoso_Khach
 import com.example.gki.ui.screens.MatchScreen
+import com.example.gki.ui.screens.SignUpScreen
 import com.example.gki.ui.screens.TP_Hoso.EditAvataScreen
 import com.example.gki.ui.screens.TP_Hoso.EditHobbiesScreen
 import com.example.gki.ui.screens.TP_Hoso.EditInfoScreen
 import com.example.gki.ui.screens.TP_Hoso.UpImgScreen
 
 sealed class Screen {
+    object SignUp : Screen()
     object Login : Screen()
     object Home : Screen()
     object Chat : Screen()
@@ -36,7 +39,7 @@ sealed class Screen {
         val userId: Int,
         val fromScreen: Screen
     ) : Screen()
-
+    data class ChatBox(val userId: Int) : Screen()
     object EditAvata : Screen()
     object EditHobbies : Screen()
     object Up_Img : Screen()
@@ -55,6 +58,7 @@ class MainActivity : ComponentActivity() {
                     LoginScreen(
                         viewModel = viewModel,
                         onLoginSuccess = { userId ->
+                            viewModel.fetchMatches(userId)
                             // 1. Gọi hàm này để lấy hồ sơ đầy đủ (bao gồm sở thích) ngay lập tức
                             viewModel.fetchCurrentUser(userId)
 
@@ -63,7 +67,21 @@ class MainActivity : ComponentActivity() {
 
                             currentScreen = Screen.Home
                         },
-                        onNavigateToSignUp = { }
+                        onNavigateToSignUp = {
+                            // Sửa dấu { } trống thành dòng dưới đây:
+                            currentScreen = Screen.SignUp
+                        }
+                    )
+                }
+                is Screen.SignUp -> {
+                    SignUpScreen(
+                        viewModel = viewModel,
+                        onSignUpSuccess = {
+                            currentScreen = Screen.Login // Hoặc Screen.Home tùy bạn
+                        },
+                        onNavigateToLogin = {
+                            currentScreen = Screen.Login // Lệnh này giúp nút hoạt động
+                        }
                     )
                 }
                 is Screen.Home -> {
@@ -142,8 +160,19 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 is Screen.Chat -> {
-                    BackHandler { currentScreen = Screen.Home }
-                    // Màn hình Chat của bạn
+                    // Xử lý nút quay lại: Khi nhấn back trên điện thoại sẽ về Home
+                    BackHandler {
+                        currentScreen = Screen.Home
+                    }
+
+                    ChatScreen(
+                        viewModel = viewModel,
+                        currentScreen = Screen.Chat,
+                        onNavigate = { nextScreen ->
+                            // Chỉ cần gán giá trị mới cho biến currentScreen là màn hình tự đổi
+                            currentScreen = nextScreen
+                        }
+                    )
                 }
                 is Screen.Match -> {
                     // Xử lý nút quay lại của hệ thống để về màn hình Home
@@ -169,6 +198,19 @@ class MainActivity : ComponentActivity() {
                             onNavigate = { newScreen ->
                                 currentScreen = newScreen
                             }
+                        )
+                    }
+                }
+                is Screen.ChatBox -> {
+                    val screen = currentScreen as Screen.ChatBox
+                    val user = viewModel.customers.collectAsState().value
+                        .find { it.id_user == screen.userId }
+
+                    user?.let {
+                        com.example.gki.ui.screens.TP_Chat.Khung_Chat(
+                            user = it,
+                            viewModel = viewModel, // Thêm dòng này
+                            onBack = { currentScreen = Screen.Chat }
                         )
                     }
                 }

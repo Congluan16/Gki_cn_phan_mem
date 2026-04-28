@@ -2,6 +2,7 @@ package com.example.gki.data.remote
 
 import com.example.gki.data.model.UserResponse
 import com.example.gki.data.model.MatchResponse
+import com.example.gki.data.model.MessageResponse
 import com.example.gki.data.model.PostImageResponse
 import retrofit2.http.*
 
@@ -72,4 +73,34 @@ interface ApiService {
         @Field("my_id") myId: Int,
         @Field("target_id") targetId: Int
     ): Map<String, String>
+    @FormUrlEncoded
+    @POST("save_user_action.php")
+    suspend fun saveUserAction(
+        @Field("user_id") userId: Int,
+        @Field("target_user_id") targetUserId: Int,
+        @Field("action_type") actionType: String
+    ): Map<String,String>
+    // Thêm vào ApiService interface
+    @GET("get_messages.php")
+    suspend fun getMessages(@Query("id_match") matchId: Int): List<MessageResponse>
+
+    @FormUrlEncoded
+    @POST("send_message.php")
+    suspend fun sendMessage(
+        @Field("id_match") matchId: Int,
+        @Field("sender_id") senderId: Int,
+        @Field("content") content: String
+    ): Map<String, String>
+    // Thêm vào interface ApiService
+    @FormUrlEncoded
+    @POST("register.php")
+    suspend fun signUp(
+        @Field("full_name") fullName: String,
+        @Field("email") email: String,
+        @Field("password") password: String,
+        @Field("birth_date") birthDate: String,
+        @Field("height") height: String,
+        @Field("weight") weight: String,
+        @Field("gender") gender: String
+    ): UserResponse
 }

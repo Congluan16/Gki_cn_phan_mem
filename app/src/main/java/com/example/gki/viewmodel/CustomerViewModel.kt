@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gki.data.model.MatchResponse
+import com.example.gki.data.model.MessageResponse
 import com.example.gki.data.model.PostImageResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -246,5 +247,68 @@ class CustomerViewModel : ViewModel() {
             }
         }
     }
+    fun saveUserAction(
+        userId: Int,
+        targetUserId: Int,
+        actionType: String
+    ){
+        viewModelScope.launch {
+            try{
+                Log.d("TEST", "$userId - $targetUserId - $actionType")
 
+                val res = apiService.saveUserAction(userId,targetUserId,actionType)
+
+                Log.d("TEST", res.toString())
+
+            }catch(e:Exception){
+                Log.e("TEST", e.message.toString())
+            }
+        }
+    }
+    // Thêm vào CustomerViewModel class
+    private val _messages = MutableStateFlow<List<MessageResponse>>(emptyList())
+    val messages: StateFlow<List<MessageResponse>> = _messages
+
+    fun fetchMessages(matchId: Int) {
+        viewModelScope.launch {
+            try {
+                // API nên trả về danh sách đã ORDER BY timestamp ASC từ server
+                _messages.value = apiService.getMessages(matchId)
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi tải tin nhắn: ${e.message}")
+            }
+        }
+    }
+
+    fun sendMessage(matchId: Int, senderId: Int, content: String) {
+        viewModelScope.launch {
+            try {
+                apiService.sendMessage(matchId, senderId, content)
+                fetchMessages(matchId) // Tải lại để cập nhật tin nhắn mới nhất
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Lỗi gửi tin nhắn: ${e.message}")
+            }
+        }
+    }
+    // Thêm vào class CustomerViewModel
+    fun signUp(
+        fullName: String, email: String, pass: String,
+        birth: String, height: String, weight: String, gender: String,
+        onSuccess: () -> Unit, onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val user = repository.signUp(fullName, email, pass, birth, height, weight, gender)
+                if (user.id_user != 0) {
+                    _currentUser.value = user
+                    onSuccess()
+                } else {
+                    onError("Đăng ký thất bại.")
+                }
+            } catch (e: Exception) {
+                Log.e("DEBUG_API", "Error: ${e.message}")
+                onError("Lỗi kết nối hoặc Email đã tồn tại.")
+            }
+        }
+    }
 }
